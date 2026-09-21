@@ -58,4 +58,7 @@ venv/
 *.log
 .env
 config/odoo.conf
-.env.example
+
+# Keep safe templates/configuration in the repository
+!.env.example
+!config/odoo.conf
