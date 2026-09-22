@@ -4,8 +4,9 @@
         <field name="name">helpdesk.ticket.kanban</field>
         <field name="model">helpdesk.ticket</field>
         <field name="arch" type="xml">
-            <kanban default_group_by="stage_id" class="o_kanban_small_column">
+            <kanban default_group_by="stage_id" class="o_kanban_small_column" records_draggable="true">
                 <field name="stage_id"/>
+                <field name="name"/>
                 <field name="kanban_state"/>
                 <field name="priority"/>
                 <field name="is_overdue"/>
@@ -16,8 +17,9 @@
                                 <strong><field name="ticket_ref"/></strong>
                                 <field name="priority" widget="priority"/>
                             </div>
-                            <div><field name="name"/></div>
+                            <div class="o_kanban_record_title"><field name="name"/></div>
                             <div><field name="partner_id"/></div>
+                            <div t-if="record.is_overdue.raw_value" class="text-danger fw-bold">Overdue</div>
                             <footer>
                                 <field name="kanban_state" widget="state_selection"/>
                                 <field name="user_id" widget="many2one_avatar_user"/>
@@ -33,7 +35,7 @@
         <field name="name">helpdesk.ticket.list</field>
         <field name="model">helpdesk.ticket</field>
         <field name="arch" type="xml">
-            <list string="Tickets" decoration-danger="is_overdue">
+            <list string="Tickets" decoration-danger="is_overdue" decoration-warning="priority == '2'" decoration-bf="priority == '3'">
                 <field name="ticket_ref"/>
                 <field name="name"/>
                 <field name="partner_id"/>
@@ -52,7 +54,12 @@
         <field name="model">helpdesk.ticket</field>
         <field name="arch" type="xml">
             <form string="Ticket">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="new,in_progress,resolved,closed,cancelled" readonly="1"/>
+                </header>
                 <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <field name="active" invisible="1"/>
                     <div class="oe_title">
                         <label for="name" class="oe_edit_only"/>
                         <h1><field name="name" placeholder="Ticket title"/></h1>
@@ -65,25 +72,31 @@
                             <field name="user_id"/>
                         </group>
                         <group>
-                            <field name="stage_id"/>
+                            <field name="stage_id" options="{'no_create': True}"/>
                             <field name="priority" widget="priority"/>
-                            <field name="state"/>
                             <field name="kanban_state"/>
+                            <field name="state" readonly="1"/>
                         </group>
                     </group>
-                    <group string="Service Level">
-                        <field name="sla_deadline"/>
-                        <field name="close_date"/>
-                        <field name="is_overdue"/>
-                        <field name="age"/>
-                    </group>
-                    <field name="tag_ids" widget="many2many_tags"/>
+                    <field name="tag_ids" widget="many2many_tags" placeholder="Add tags..."/>
                     <notebook>
-                        <page string="Description">
-                            <field name="description" placeholder="Describe the issue..."/>
+                        <page string="Description" name="description">
+                            <field name="description" placeholder="Describe the issue, symptoms, and expected outcome..." nolabel="1"/>
+                        </page>
+                        <page string="SLA" name="sla">
+                            <group string="Service Level">
+                                <field name="sla_deadline" help="The target date and time for resolving this ticket."/>
+                                <field name="is_overdue" readonly="1"/>
+                                <field name="age" readonly="1"/>
+                                <field name="close_date" readonly="1"/>
+                            </group>
+                        </page>
+                        <page string="Activity" name="activity">
+                            <field name="activity_ids" widget="list_activity"/>
                         </page>
                     </notebook>
                 </sheet>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -99,12 +112,20 @@
                 <field name="user_id"/>
                 <field name="team_id"/>
                 <field name="stage_id"/>
+                <field name="priority"/>
+                <field name="kanban_state"/>
+                <filter name="my_tickets" string="My Tickets" domain="[('user_id', '=', uid)]"/>
                 <filter name="overdue" string="Overdue" domain="[('is_overdue', '=', True)]"/>
                 <filter name="unassigned" string="Unassigned" domain="[('user_id', '=', False)]"/>
+                <filter name="priority_high" string="High Priority" domain="[('priority', 'in', ['2', '3'])]"/>
+                <filter name="kanban_blocked" string="Blocked" domain="[('kanban_state', '=', 'blocked')]"/>
+                <filter name="archived" string="Archived" domain="[('active', '=', False)]" context="{'active_test': False}"/>
                 <group string="Group By">
                     <filter name="group_stage" string="Stage" context="{'group_by': 'stage_id'}"/>
                     <filter name="group_team" string="Team" context="{'group_by': 'team_id'}"/>
                     <filter name="group_user" string="Assigned User" context="{'group_by': 'user_id'}"/>
+                    <filter name="group_priority" string="Priority" context="{'group_by': 'priority'}"/>
+                    <filter name="group_kanban_state" string="Kanban State" context="{'group_by': 'kanban_state'}"/>
                 </group>
             </search>
         </field>
@@ -191,6 +212,21 @@
         <field name="name">Tags</field>
         <field name="res_model">helpdesk.tag</field>
         <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Safe view inheritance example: expose a customer's ticket count and
+         shortcut without changing the standard Contacts workflow. -->
+    <record id="res_partner_view_form_inherit_helpdesk" model="ir.ui.view">
+        <field name="name">res.partner.form.inherit.helpdesk</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_helpdesk_tickets" type="object" class="oe_stat_button" icon="fa-life-ring">
+                    <field name="helpdesk_ticket_count" widget="statinfo" string="Tickets"/>
+                </button>
+            </xpath>
+        </field>
     </record>
 
     <!-- Keep the Odoo administrator visible during onboarding even before a

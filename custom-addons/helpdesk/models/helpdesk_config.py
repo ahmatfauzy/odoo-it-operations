@@ -1,6 +1,33 @@
 from odoo import api, fields, models
 
 
+class ResPartner(models.Model):
+    _inherit = 'res.partner'
+
+    helpdesk_ticket_ids = fields.One2many(
+        'helpdesk.ticket', 'partner_id', string='Ticket Records', readonly=True,
+    )
+    helpdesk_ticket_count = fields.Integer(
+        string='Helpdesk Tickets', compute='_compute_helpdesk_ticket_count',
+    )
+
+    @api.depends('helpdesk_ticket_ids', 'helpdesk_ticket_ids.active')
+    def _compute_helpdesk_ticket_count(self):
+        for partner in self:
+            partner.helpdesk_ticket_count = len(partner.helpdesk_ticket_ids)
+
+    def action_view_helpdesk_tickets(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': 'Helpdesk Tickets',
+            'res_model': 'helpdesk.ticket',
+            'view_mode': 'kanban,list,form',
+            'domain': [('partner_id', '=', self.id)],
+            'context': {'default_partner_id': self.id},
+        }
+
+
 class HelpdeskStage(models.Model):
     _name = 'helpdesk.stage'
     _description = 'Helpdesk Stage'

@@ -5,12 +5,17 @@ from odoo.exceptions import ValidationError
 class HelpdeskTicket(models.Model):
     _name = 'helpdesk.ticket'
     _description = 'Helpdesk Ticket'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'priority desc, id desc'
 
-    name = fields.Char(string='Title', required=True)
+    name = fields.Char(string='Title', required=True, tracking=True)
     ticket_ref = fields.Char(
         string='Reference', required=True, readonly=True, copy=False,
         default='New', index=True,
+    )
+    active = fields.Boolean(
+        string='Active', default=True, index=True,
+        help='Clear this field to archive the ticket without deleting its history.',
     )
     description = fields.Html(string='Description', sanitize=True)
     partner_id = fields.Many2one(
@@ -18,7 +23,7 @@ class HelpdeskTicket(models.Model):
     )
     user_id = fields.Many2one(
         'res.users', string='Assigned User', ondelete='set null', index=True,
-        domain=[('share', '=', False)],
+        domain=[('share', '=', False)], tracking=True,
     )
     team_id = fields.Many2one(
         'helpdesk.team', string='Team', ondelete='set null', index=True
@@ -26,7 +31,7 @@ class HelpdeskTicket(models.Model):
     stage_id = fields.Many2one(
         'helpdesk.stage', string='Stage', ondelete='restrict', index=True,
         default=lambda self: self._default_stage(),
-        group_expand='_read_group_stage_ids',
+        group_expand='_read_group_stage_ids', tracking=True,
     )
     priority = fields.Selection(
         [
@@ -36,6 +41,7 @@ class HelpdeskTicket(models.Model):
             ('3', 'Urgent'),
         ],
         string='Priority', default='1', required=True, index=True,
+        tracking=True,
     )
     state = fields.Selection(
         [
