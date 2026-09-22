@@ -13,6 +13,7 @@ Tickets are automatically numbered and synchronized with their workflow stage.
     'license': 'LGPL-3',
     'depends': ['base', 'mail'],
     'data': [
+        'security/helpdesk_security.xml',
         'security/ir.model.access.csv',
         'data/helpdesk_sequence.xml',
         'data/helpdesk_stages.xml',

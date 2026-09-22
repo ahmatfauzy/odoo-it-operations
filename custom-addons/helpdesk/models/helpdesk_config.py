@@ -6,6 +6,14 @@ class HelpdeskStage(models.Model):
     _description = 'Helpdesk Stage'
     _order = 'sequence, id'
 
+    _sql_constraints = [
+        (
+            'name_uniq',
+            'unique(name)',
+            'A helpdesk stage with this exact name already exists.',
+        ),
+    ]
+
     name = fields.Char(string='Name', required=True, translate=True)
     sequence = fields.Integer(string='Sequence', default=10)
     fold = fields.Boolean(

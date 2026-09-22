@@ -58,6 +58,11 @@ venv/
 *.log
 .env
 config/odoo.conf
+# The Odoo core checkout is a local runtime dependency, not custom addon code.
+# Keep it out of accidental commits/staging; do not delete the directories.
+/addons/
+/odoo/
+/odoo-bin
 
 # Keep safe templates/configuration in the repository
 !.env.example

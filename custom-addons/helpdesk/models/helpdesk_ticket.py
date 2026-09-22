@@ -26,6 +26,7 @@ class HelpdeskTicket(models.Model):
     stage_id = fields.Many2one(
         'helpdesk.stage', string='Stage', ondelete='restrict', index=True,
         default=lambda self: self._default_stage(),
+        group_expand='_read_group_stage_ids',
     )
     priority = fields.Selection(
         [
@@ -104,6 +105,14 @@ class HelpdeskTicket(models.Model):
         ]
 
     @api.model
+    def _read_group_stage_ids(self, stages, domain):
+        """Return every permitted stage so empty kanban columns are shown."""
+        # Search through the current environment so ACLs and record rules on
+        # helpdesk.stage continue to apply to the expanded groups.
+        stage_ids = stages._search([], order=stages._order)
+        return stages.browse(stage_ids)
+
+    @api.model
     def _default_stage(self):
         return self.env['helpdesk.stage'].search(
             [], order='sequence, id', limit=1
@@ -113,6 +122,15 @@ class HelpdeskTicket(models.Model):
     def create(self, vals_list):
         sequence = self.env['ir.sequence']
         for vals in vals_list:
+            # New tickets created by an agent must immediately satisfy the
+            # agent record rule; managers remain free to create unassigned
+            # tickets for triage.
+            if (
+                not vals.get('user_id')
+                and self.env.user.has_group('helpdesk.group_helpdesk_user')
+                and not self.env.user.has_group('helpdesk.group_helpdesk_manager')
+            ):
+                vals['user_id'] = self.env.uid
             if not vals.get('ticket_ref') or vals['ticket_ref'] == 'New':
                 vals['ticket_ref'] = sequence.next_by_code('helpdesk.ticket') or 'New'
         tickets = super().create(vals_list)
